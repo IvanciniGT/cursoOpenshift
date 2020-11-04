@@ -1,0 +1,128 @@
+---
+clave1: 65      # Numéricos
+clave2: "texto" # Texto
+clave4: texto   # Texto
+clave3: True    # Logico
+clave5: "765"   # Texto
+# Texto que se doy en varias lineas, pero que yaml lo junta con espacion en blanco
+clave5: >       
+    Hola 
+    amigo
+# clave5: "Hola amigo"
+# Texto que se doy en varias lineas, pero que yaml mantiene el formato (OJO: quitando el sangrado)
+clave5: |      
+    Hola 
+    amigo
+# clave5: "Hola\namigo"
+clave6: #Lista de valores. Los valores los sangramos (COMO QUIERA, pero de forma COHERENTE dentro del NIVEL)
+    - 12
+    - 13
+    - 14
+clave7: #Lista de valores. Los valores los sangramos (COMO QUIERA, pero de forma COHERENTE dentro del NIVEL)
+        - clave1: valor1
+          clave2: valor2
+        - 34
+        - Texto3
+clave8: # Más claves / Valor
+    subclave8: Valor
+    otrasubclave8: otro valor distinto
+---
+### Comienza en documento
+clave1: valor1
+clave2: valor1
+...
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example
+  labels:
+    app: hello-openshift
+  namespace: default
+  
+spec:
+  containers:
+    - name: hello-openshift
+      image: openshift/hello-openshift
+      ports:
+        - containerPort: 8080    
+        
+    - name: hello-openshift2
+      image: openshift/hello-openshift
+      ports:
+        - containerPort: 8081
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example1
+  labels:
+    app: hello-openshift
+  namespace: default
+  
+spec:
+  containers:
+    - name: hello-openshift
+      image: openshift/hello-openshift
+      ports:
+        - containerPort: 8080
+      env:
+        - name: usuarioDB
+          value: Lucas
+      volumes:
+        - name: DatosDB
+          path: /datos
+  volumes:
+    - name: DatosBD
+      configmap: cm1
+--- 
+apiVersion: v1
+king: Service
+spec:
+    ports:
+        port: 9090
+        backend: PODs( app: hello-openshift : 8080) 
+---
+--- 
+apiVersion: v1
+king: ConfigMap
+metadata:
+  name: cm1
+  namespace: default
+spec:
+    usuarioDB.properties: |
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        DB_path=223084
+        
+    puertoDB: 3306
+# Kubernetes: 
+# Namespaces: 
+#      default
+#      controlplane
+# Source2Image
+
+Generamos una IMAGEN de contenedor
+IMAGE ubuntu
+CMD apt upgrade -y && apt update -y
+CMD apt install git
+COPY ./miprograma /miprograma
+EXPOSE 8081
+ENV usuarioBD=Michael
+VOLUME /miprograma/datos
+RUN /miprograma/start.sh >>> GENERARA SALIDA STANDAR STDOUT
+
+oc
+kubelet 
+docker container create --name micontenedor -e usuarioBD=John desdeEstaImagen

@@ -1,0 +1,268 @@
+#PODS
+# Application Programming Interface -> Lo que puedo hacer con una aplicación
+# Openshift (Kubernetes): API: Incluye todos los objetos que podemos crear en Openshift/Kubernetes
+#apiVersion: API Group/API Version
+#apiVersion: API Version
+apiVersion: v1
+kind: Pod
+metadata:
+    name: pod-ejemplo-1
+    labels:
+        app: nginx
+spec:
+    containers:
+        # Contenedor que tiene corriendo un nginx
+        - name: ejemplo1-nginx
+          image: nginx
+          env:
+            - name: VAR_NGINX
+              value: valor del var nginx
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: compartido
+              mountPath: /datos
+        # Contenedor imagen con base de fedora
+        - name: ejemplo1-fedora
+          image: fedora
+          command: ['sh','-c','sleep 3600;']
+          # Al configurar un contenedor tenemos 2 opciones: environment y ficheros
+          env:
+            - name: VAR_FEDORA
+              value: valor del var fedora
+            - name: VAR_1
+              valueFrom:
+                configMapKeyRef:
+                    name: configuracion-fedora-ejemplo1
+                    key: var-fedora-1
+          volumeMounts:
+            - name: compartido
+              mountPath: /info
+            - name: configuracion
+              mountPath: /config
+    volumes:
+        - name: compartido # DOCKER... Generar una carpeta vacia en la maquina host 
+          empty-dir: {}
+        - name: configuracion
+          configMap:
+            name: configuracion-fedora-ejemplo2
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+    name: ejemplo1-servicio-nginx
+
+spec:
+    ports:
+        - port: 8080 # El puerto en el que escucha el SERVICIO, que va a tener (el servicio) su propia IP
+          targetPort: 80
+    selector:
+        app: nginx
+        
+---
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+    name: configuracion-fedora-ejemplo1
+data:
+    var-fedora-1: Soy el valor de la variable 1
+    var-fedora-2: Soy el valor de la variable 2
+---
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+    name: configuracion-fedora-ejemplo2
+data:
+    variable: Valor de la variable
+    fichero.conf: |
+        linea1=true
+        linea2=otra cosa
+        linea3=mas cosas
+
+# Deployment
+# Tipo de despliegue <--- Pods <---- Contenedores
+
+# App nominas
+# Contenedor servidor de aplicaciones web: WEBLOGIC
+# Contenedor FILEBEAT: Monitorizar los log de WEBLOGIC
+# Servidor de Base de datos: MARIADB
+    # Necesito que se ejecuten en la misma máquina? BD No
+    # Necesito que se escalen de la misma forma?    
+# Cluster. Por qué voy a generar una réplica? 
+    # HA
+    # Escalamiento
+    
+# Petición a mi app ---> 90% WEBLOGIC   90% MARIADB
+# No poder asumir que ambas se van a escalar de la misma forma >>>> SEPARARLOS
+
+# Deployment
+#   POD 1
+#     C.Weblogic 9200
+#     C.Filebeat -----> ES:9200
+        FLUEND
+#   POD 2
+#     C.MariaDB
+
+
+
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: nginx
+spec:
+  host: nginx-default.2886795291-80-host17nc.environments.katacoda.com
+  to:
+    kind: Service
+    name: nginx
+    weight: 100
+  port:
+    targetPort: 80-tcp
+  wildcardPolicy: None
+---
+kind: ReplicaSet
+apiVersion: apps/v1
+metadata:
+  name: httpd-65f87dc487
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: httpd
+      pod-template-hash: 65f87dc487
+  template:
+    metadata:
+      labels:
+        app: httpd
+        pod-template-hash: 65f87dc487
+    spec:
+      containers:
+        - name: httpd
+          image: >-
+            httpd@sha256:60b82a0c2599b217d5231d3a54eb9f691ac8bc15b66f8f5f79f383f87c9c51ce
+          ports:
+            - containerPort: 80
+
+
+# Jenkins
+#    Trabajos: JOBS <- PIPELINE (programa que va ejecutando tareas)
+# Usuarios 
+# Jenkins Tiene una base de datos
+
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: jenkins
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+-----
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pv0008
+spec:
+  capacity:
+    storage: 100Gi
+  hostPath:
+    path: /mnt/pv-data/pv0008
+  accessModes:
+    - ReadWriteOnce
+    - ReadWriteMany
+    - ReadOnlyMany
+---
+spec:
+  restartPolicy: Always
+  serviceAccountName: jenkins
+  imagePullSecrets:
+    - name: jenkins-dockercfg-b2fxh
+  priority: 0
+  schedulerName: default-scheduler
+  enableServiceLinks: true
+  terminationGracePeriodSeconds: 30
+  nodeName: crc-rtgqw-master-0
+  securityContext: {}
+  containers:
+    - name: jenkins
+      env:
+        - name: OPENSHIFT_ENABLE_OAUTH
+          value: 'true'
+        - name: OPENSHIFT_ENABLE_REDIRECT_PROMPT
+          value: 'true'
+        - name: DISABLE_ADMINISTRATIVE_MONITORS
+          value: 'false'
+        - name: KUBERNETES_MASTER
+          value: 'https://kubernetes.default:443'
+        - name: KUBERNETES_TRUST_CERTIFICATES
+          value: 'true'
+        - name: JENKINS_SERVICE_NAME
+          value: jenkins
+        - name: JNLP_SERVICE_NAME
+          value: jenkins-jnlp
+        - name: ENABLE_FATAL_ERROR_LOG_FILE
+          value: 'false'
+        - name: JENKINS_UC_INSECURE
+          value: 'false'
+      securityContext:
+        capabilities: {}
+        privileged: false
+      imagePullPolicy: IfNotPresent
+      volumeMounts:
+        - name: jenkins-data
+          mountPath: /var/lib/jenkins
+        - name: jenkins-token-t6rgt
+          readOnly: true
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      terminationMessagePolicy: File
+      image: >-
+        image-registry.openshift-image-registry.svc:5000/openshift/jenkins@sha256:bd8b955ae1fa10135c9904d85c60b20a8f06deda9f103c88a55e1d28f4cb19cb
+  serviceAccount: jenkins
+  volumes:
+    - name: jenkins-data
+      persistentVolumeClaim:
+        claimName: jenkins
+    - name: jenkins-token-t6rgt
+      secret:
+        secretName: jenkins-token-t6rgt
+        defaultMode: 420
+
+
+
+nfs: ----> /datos
+
+volumenes 
+ /datos/v1 <- Servidor NFS (POD) quota almacenamiento
+ /datos/v2 <- Servidor NFS (POD)
+ /datos/v3
+
+contenedor NFS quota almacenamiento, quota CPU, cuota RAM
+
+POD: quota almacenamiento, quota CPU, cuota RAM
+
+----------
+Servicio AWS Almacenamiento NFS ( 100 Gb )
+nfs://amazon/myvolumen (100Gb)
+----------
+
+Cluster
+    Nodo1
+        /nfs/v1     --->   nfs://amazon/myvolumen/v1
+        Pod "QUOTA"
+            ES-Data
+        Pod nfs /nfs/v1 "QUOTA"
+    Nodo2
+        Pod
+            ES-Data
+    Nodo3
+        Pod
+            ES-Data
+
+
+
+
